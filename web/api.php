@@ -13,10 +13,14 @@ $log->pushHandler(new StreamHandler('../everything.log', Logger::DEBUG));
 $log->pushHandler(new StreamHandler('../errors.log', Logger::ERROR));
 
 // http://meekro.com/
-DB::$dbName = 'hw3restfulemail';
-DB::$user = 'hw3restfulemail';
-DB::$password = 'Epi48FZC14uZ5pXv';
-DB::$port = 3306;
+$url = parse_url(getenv("us-cdbr-iron-east-03.cleardb.net/heroku_ec730381fb7f"));
+
+$mdb = new MeekroDB('us-cdbr-iron-east-03.cleardb.net','bd2b17519b40d8', '116d23b3', 'heroku_ec730381fb7f', 3306, $encoding);
+
+/*DB::$dbName = 'heroku_ec730381fb7f';
+DB::$user = 'bd2b17519b40d8';
+DB::$password = '116d23b3';
+DB::$port = 3306;*/
 
 DB::$error_handler = 'sql_error_handler';
 DB::$nonsql_error_handler = 'nonsql_error_handler';
