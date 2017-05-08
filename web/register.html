@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+        <link rel="stylesheet" type="text/css" href="bootstrap-3.3.7-dist/css/bootstrap.min.css">
+        <link rel="stylesheet" type="text/css" href="css/main.css">
+        <link rel="stylesheet" type="text/css" href="bootstrap-3.3.7-dist/font-awesome/css/font-awesome.min.css">
+        
+        <link rel="stylesheet" type="text/css" href='https://fonts.googleapis.com/css?family=Passion+One'>
+        <link rel="stylesheet" type="text/css" href='https://fonts.googleapis.com/css?family=Oxygen'>
+        <script type="text/javascript" src="bootstrap-3.3.7-dist/js/bootstrap.min.js"></script>
+        
+        
+        <title>Register</title>
+        <script>
+            $(document).ready(function () {
+                $("#register").click(function () {
+                    var hasErrors = false;
+                    var email = $("#registerForm input[name=email]").val();
+                    var fullName = $("#registerForm input[name=fullName]").val();
+                    var password = $("#registerForm input[name=password]").val();
+                    var confirm = $("#registerForm input[name=confirm]").val();
+                    if (password !== confirm) {
+                        $("#registerForm #passError").show();
+                        hasErrors = true;
+                    } else {
+                        $("#registerForm #passError").hide();
+                    }
+                    if (hasErrors) {
+                        return;
+                    }
+                    var user = {email: email, fullName: fullName, password: password};
+                    var dataToSend = JSON.stringify(user);
+                    console.log(dataToSend);
+                    $.ajax({
+                        url: "/api/users",
+                        complete: function (xhr, text) {
+                            switch (xhr.status) {
+                                case 400: //Bad request
+                                    if ((xhr.responseText).startsWith('"400 - data invalid: Password must')){
+                                        $("#registerForm #Error").html("Password must be 8 to 100 characters long and must contain 1 upper case, 1 lower case and 1 number or special character");
+                                    }
+                                    else{
+                                        $("#registerForm #Error").html("Register failed. Check username and password");
+                                    }
+                                    $("#registerForm #Error").show();
+                                    break;
+                                case 401: // Unautharized
+                                    $("#registerForm #Error").html("Register failed. Check username and password");
+                                    $("#registerForm #Error").show();
+                                    break;
+                                case 201: // Success
+                                    $("#registerForm #Error").hide();
+                                    break;
+                                default:
+                                    alert("Server API error with code " + xhr.status);
+                            }
+                        },
+                        type: "POST",
+                        data: dataToSend
+                    }).done(function (data) {
+                        console.log("User added");
+                        $("registerSuccess").html("<h4'>Register successful, you may now <a href='/mail.html'>Login</a></h4>");
+                        //console.log(data);
+                    });
+                });
+                
+                $("#changePassword").click(function () {
+                    var hasErrors = false;
+                    var loginEmail = $("#changeForm input[name=loginEmail]").val();
+                    var newName = $("#changeForm input[name=newName]").val();
+                    var opw = $("#changeForm input[name=opw]").val();
+                    var npw = $("#changeForm input[name=npw]").val();
+                    var npw2 = $("#changeForm input[name=npw2]").val();
+                    if (npw !== npw2) {
+                        $("#changeForm #passErrorC").show();
+                        hasErrors = true;
+                    } else {
+                        $("#changeForm #passErrorC").hide();
+                    }
+                    if (hasErrors) {
+                        return;
+                    }
+                    var user = {email: loginEmail, fullName: newName, password: opw, npw: npw, npw2: npw2};
+                    var dataToSend = JSON.stringify(user);
+                    console.log(dataToSend);
+                    $.ajax({
+                        url: "/api/users/"+loginEmail,
+                        beforeSend: function (xhr) {
+                            xhr.setRequestHeader("Authorization", "Basic " + btoa(loginEmail + ":" + opw));
+                        },
+                        complete: function (xhr, text) {
+                            switch (xhr.status) {
+                                case 400: //Bad request
+                                    if ((xhr.responseText).startsWith('"400 - data invalid: Password must')){
+                                        $("#changeForm #ErrorC").html("Password must be 8 to 100 characters long and must contain 1 upper case, 1 lower case and 1 number or special character");
+                                    }
+                                    else{
+                                        $("#changeForm #ErrorC").html("Change password failed. Check email and password");
+                                    }
+                                    $("#changeForm #ErrorC").show();
+                                    break;
+                                case 401: // Unautharized
+                                    $("#changeForm #ErrorC").html("Change password failed. Check email and password");
+                                    $("#changeForm #ErrorC").show();
+                                    break;
+                                case 200: // Success
+                                    $("#changeForm #ErrorC").hide();
+                                    break;
+                                default:
+                                    alert("Server API error with code " + xhr.status);
+                            }
+                        },
+                        type: "PUT",
+                        data: dataToSend
+                    }).done(function (data) {
+                        console.log("Password changed.");
+                        $("#changeSuccess").html("<h4'>Changed password successful, you may now <a href='/mail.html'>Login</a></h4>");
+                        //console.log(data);
+                    });
+                });
+                
+            });
+        </script>
+    </head>
+    <body>
+        <div class="container">
+            <div class="row main">
+                <div class="panel-heading">
+                    <div class="row">
+                        <div class="col-md-1"></div>
+                        <div class="col-md-4 panel-title text-center">
+                            <h1 class="title">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Register</h1>
+                            <hr />
+                        </div>
+                        <div class="col-md-2"></div>
+                        <div class="col-md-4 panel-title text-center">
+                            <h1 class="title">Change Password</h1>
+                            <hr />
+                        </div>
+                        
+                    </div>
+                </div> 
+                <div class="row">
+                    <div class="col-md-2"></div>
+                    <div class="main-login main-center col-md-4" id="registerForm">
+                    
+                    <form class="form-horizontal" method="post" action="#" id="registerSuccess">
+                        
+                        <div class="form-group">
+                            <label for="fullName" class="control-label">Full Name</label>
+                            <div>
+                                <div class="input-group">
+                                    <span class="input-group-addon"><i class="fa fa-user fa" aria-hidden="true"></i></span>
+                                    <input type="text" class="form-control" name="fullName" id="fullName"  placeholder="Enter your name"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email" class="control-label">Email</label>
+                            <div>
+                                <div class="input-group">
+                                    <span class="input-group-addon"><i class="fa fa-envelope fa" aria-hidden="true"></i></span>
+                                    <input type="text" class="form-control" name="email" id="email"  placeholder="Enter your Email"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="password" class="control-label">Password</label>
+                            <div>
+                                <div class="input-group">
+                                    <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+                                    <input type="password" class="form-control" name="password" id="password"  placeholder="Enter your Password"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="confirm" class="control-label">Confirm Password</label>
+                            <div>
+                                <div class="input-group">
+                                    <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+                                    <input type="password" class="form-control" name="confirm" id="confirm"  placeholder="Confirm your Password"/>
+                                    <span class="FormErrorMessage" id="passError">Password is not identical</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group ">
+                            <span class="FormErrorMessage" id="Error"></span>
+                            <button id="register" type="button" class="btn btn-primary btn-lg btn-block login-button">Register</button>
+                        </div>
+                        <div class="login-register">
+                            <a href="/mail.html">Login</a>
+                        </div>
+                    </form>
+                </div>
+                    <!--                                    CHANGE PASSWORD                                                           -->
+                    <div class="col-md-2"></div>
+                    <div class="main-login main-center col-md-4" id="changeForm">
+                    
+                    <form class="form-horizontal" method="post" action="#" id="changeSuccess">
+                        
+                        <div class="form-group">
+                            <label for="loginEmail" class="control-label">Login Email</label>
+                            <div>
+                                <div class="input-group">
+                                    <span class="input-group-addon"><i class="fa fa-envelope fa" aria-hidden="true"></i></span>
+                                    <input type="text" class="form-control" name="loginEmail" id="loginEmail"  placeholder="Enter your email"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="newName" class="control-label">Full Name</label>
+                            <div>
+                                <div class="input-group">
+                                    <span class="input-group-addon"><i class="fa fa-user fa" aria-hidden="true"></i></span>
+                                    <input type="text" class="form-control" name="newName" id="newName"  placeholder="Enter your name"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="opw" class="control-label">Password (old)</label>
+                            <div>
+                                <div class="input-group">
+                                    <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+                                    <input type="password" class="form-control" name="opw" id="opw"  placeholder="Enter your old password"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="npw" class="control-label">Password (new)</label>
+                            <div>
+                                <div class="input-group">
+                                    <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+                                    <input type="password" class="form-control" name="npw" id="npw"  placeholder="Enter your new password"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="npw2" class="control-label">Password (new)</label>
+                            <div>
+                                <div class="input-group">
+                                    <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+                                    <input type="password" class="form-control" name="npw2" id="npw2"  placeholder="Confirm your new password"/>
+                                    <span class="FormErrorMessage" id="passErrorC">Password is not identical</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group ">
+                            <span class="FormErrorMessage" id="ErrorC"></span>
+                            <button id="changePassword" type="button" class="btn btn-primary btn-lg btn-block login-button">Change Password</button>
+                        </div>
+                        <div class="login-register">
+                            <a href="/mail.html">Login</a>
+                        </div>
+                    </form>
+                </div>              
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

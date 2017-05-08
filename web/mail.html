@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="emailrestful">
+        <meta name="author" content="adolfo">
+        <title>Email</title>
+        <!-- Bootstrap Core CSS -->
+        <link rel="stylesheet" type="text/css" href="bootstrap-3.3.7-dist/css/bootstrap.min.css">
+        <!-- Custom CSS -->
+        <link href="css/sb-admin.css" rel="stylesheet">
+        <!-- Custom Fonts -->
+        <link rel="stylesheet" type="text/css" href="bootstrap-3.3.7-dist/font-awesome/css/font-awesome.min.css">
+        <!-- jQuery -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+        <!-- Bootstrap Core JavaScript -->
+        <script type="text/javascript" src="bootstrap-3.3.7-dist/js/bootstrap.min.js"></script>
+        <script>
+            function getAttachment(emailID)
+            {
+                window.location="/api/emails/"+emailID+"/attachment";
+            }
+            function sendEmail()
+            {
+                var formData = new FormData();
+                var to = $("#to").val();
+                var subject = $("#subject").val();
+                var mailBody = $("#mailBody").val();
+                
+                email = $("#loginForm input[name=email]").val();
+                password = $("#loginForm input[name=password]").val();
+                
+                formData.append('to', to);
+                formData.append('subject', subject);
+                formData.append('body', mailBody);
+                
+                if (document.getElementById("upload").value !== "")
+                {
+                    var dbFile = document.getElementById("upload").files[0];
+                    var stringFile = '';
+                    File.prototype.convertToBase64 = function(callback){
+                            var reader = new FileReader();
+                            reader.onload = function(e) {
+                                 callback(e.target.result);
+                            };
+                            reader.onerror = function(e) {
+                                 callback(null, e);
+                            };        
+                            reader.readAsDataURL(this);
+                    };
+
+                    dbFile.convertToBase64(function(base64){
+                        stringFile=base64;
+                        //console.log(stringFile);
+                        formData.append('file', stringFile);
+                        var mimeType = dbFile.type;
+                        formData.append('attachmentMimeType', mimeType);
+                        var fullPath = document.getElementById("upload").value;
+                        if (fullPath) {
+                            var startIndex = (fullPath.indexOf('\\') >= 0 ? fullPath.lastIndexOf('\\') : fullPath.lastIndexOf('/'));
+                            var fileName = fullPath.substring(startIndex);
+                            if (fileName.indexOf('\\') === 0 || fileName.indexOf('/') === 0) {
+                                fileName = fileName.substring(1);
+                            }
+                        }
+                        formData.append('attachmentFileName', fileName);
+                        $.ajax({
+                            url: "/api/emails",
+                            cache: false,
+                            contentType: false,
+                            processData: false,
+                            beforeSend: function (xhr) {
+                                xhr.setRequestHeader("Authorization", "Basic " + btoa(email + ":" + password));
+                            },
+                            complete: function (xhr, text) {
+                                switch (xhr.status) {
+                                    case 400: //Bad request
+                                        alert("Send email failed. Check the data.");
+                                        break;
+                                    case 200: // Success
+                                        break;
+                                    case 404:
+                                        alert("404 - not found.");
+                                    default:
+                                        alert("Server API error with code " + xhr.status);
+                                }
+                            },
+                            type: "POST",
+                            data: formData
+                        }).done(function (data) {
+                            $("#newMailWindow").html("");
+                            loadMails($("#Inbox").attr('id'));
+                        });
+                    });
+                    
+                }
+                else{
+                $.ajax({
+                    url: "/api/emails",
+                    cache: false,
+                    contentType: false,
+                    processData: false,
+                    beforeSend: function (xhr) {
+                        xhr.setRequestHeader("Authorization", "Basic " + btoa(email + ":" + password));
+                    },
+                    complete: function (xhr, text) {
+                        switch (xhr.status) {
+                            case 400: //Bad request
+                                alert("Send email failed. Check the data.");
+                                break;
+                            case 200: // Success
+                                break;
+                            case 404:
+                                alert("404 - not found.");
+                            default:
+                                alert("Server API error with code " + xhr.status);
+                        }
+                    },
+                    type: "POST",
+                    data: formData
+                }).done(function (data) {
+                    $("#newMailWindow").html("");
+                    loadMails($("#Inbox").attr('id'));
+                });
+                }
+            }
+            function newMail()
+            {
+                var output = "";
+                output += "<div class='form-group'><label class='col-md-2 control-label' for='to'>To:</label><div class='col-md-10'>";
+                output += "<input id='to' name='to' type='text' placeholder='Send email to...' class='form-control input-md'></div></div>";
+                output += "<div class='form-group'><label class='col-md-2 control-label' for='subject' style='margin-top: 10px'>Subject:</label>";
+                output += "<div class='col-md-10' style='margin-top: 10px'>";
+                output += "<input id='subject' name='subject' type='text' placeholder='Subject of the email...' class='form-control input-md'></div></div>";
+                output += "<div class='form-group'><div class='col-md-12' style='margin-top: 20px;'>";
+                output += "<textarea class='form-control' id='mailBody' name='mailBody' rows='8'></textarea></div></div>";
+                output += "<div class='row'><div class='col-md-6' style='margin-top: 15px; padding-left: 50px;'>";
+                output += "<input type='file' id='upload' class='btn btn-primary' value='Attach File'></div>";
+                output += "<div class='col-md-6 text-right' style='margin-top: 15px; padding-right: 50px;'>";
+                output += "<input type='button' id='send' class='btn btn-success' onclick='sendEmail();' value='Send'></div></div>";
+
+                $("#newMailWindow").html(output);
+            }
+            function moveFolder(emailID, currentFolder)
+            {
+                var folder = $('#folders').find(":selected").text();
+                var dataToSend = JSON.stringify(folder);
+                email = $("#loginForm input[name=email]").val();
+                password = $("#loginForm input[name=password]").val();
+                $.ajax({
+                    url: "/api/emails/" + emailID,
+                    beforeSend: function (xhr) {
+                        xhr.setRequestHeader("Authorization", "Basic " + btoa(email + ":" + password));
+                    },
+                    complete: function (xhr, text) {
+                        switch (xhr.status) {
+                            case 401:
+                                alert("Login failed. Check username and password");
+                                break;
+                            case 200:
+                                break;
+                            default:
+                                alert("Server API error with code " + xhr.status);
+                        }
+                    },
+                    type: "PUT",
+                    data: dataToSend
+                }).done(function (data) {
+                    //console.log("Update completed");
+                    loadMails(currentFolder.id);
+                });
+            }
+            function loadMails(folder)
+            {
+                email = $("#loginForm input[name=email]").val();
+                password = $("#loginForm input[name=password]").val();
+                $.ajax({
+                    url: "/api/emails/folder/" + folder,
+                    beforeSend: function (xhr) {
+                        xhr.setRequestHeader("Authorization", "Basic " + btoa(email + ":" + password));
+                    },
+                    complete: function (xhr, text) {
+                        switch (xhr.status) {
+                            case 401:
+                                alert("Login failed. Check username and password");
+                                break;
+                            case 404:
+                                var output = "";
+                                output += "<a href='#' class='list-group-item' style='background-color:rgb(119, 119, 119); color:white;'><div class='row'><span class='col-md-6'>From</span><span class='col-md-6'>";
+                                output += "Subject<span class='pull-right'>Date&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp</span></span></span></div></a>";
+                                $("#emailList").html(output);
+                            case 200:
+                                break;
+                            default:
+                                alert("Server API error with code " + xhr.status);
+                        }
+                    },
+                    type: "GET",
+                    dataType: "json"
+                }).done(function (data) {
+                    currentId = data.id;
+                    var output = "";
+                    output += "<a href='#' class='list-group-item' style='background-color:rgb(119, 119, 119); color:white;'><div class='row'><span class='col-md-6'>From</span><span class='col-md-6'>";
+                    output += "Subject<span class='pull-right'>Date&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp</span></span></span></div></a>";
+
+                    for (var i = 0; i < data.length; i++)
+                    {
+                        var todo = data[i];
+                        output += "<a href='#' class='list-group-item' id='" + todo.ID + "' onClick='selectEmail(" + todo.ID + ")'><div class='row'>";
+                        output += "<span class='col-md-6'>" + todo.efrom + "</span>";
+                        output += "<span class='col-md-6'>" + todo.subject + "<span class='badge pull-right'>" + todo.dateSent + "</span></span></div></a>";
+                    }
+                    $("#emailList").html(output);
+                });
+            }
+            function selectEmail(emailID) 
+            {
+                email = $("#loginForm input[name=email]").val();
+                password = $("#loginForm input[name=password]").val();
+                $.ajax({
+                    url: "/api/emails/" + emailID,
+                    beforeSend: function (xhr) {
+                        xhr.setRequestHeader("Authorization", "Basic " + btoa(email + ":" + password));
+                    },
+                    complete: function (xhr, text) {
+                        switch (xhr.status) {
+                            case 401:
+                                alert("Login failed. Check username and password");
+                                break;
+                            case 200:
+                                break;
+                            default:
+                                alert("Server API error with code " + xhr.status);
+                        }
+                    },
+                    type: "GET",
+                    dataType: "json"
+                }).done(function (data) {
+                    $("#" + data.ID + "").addClass("active").siblings().removeClass("active");
+                    //console.log(data);
+                    var output = "";
+                    output += "<div class='list-group-item'><div class='row'><span class='col-md-2'>From:</span>";
+                    output += "<span class='col-md-10'>" + data.efrom + "</span></div><div class='row'><span class='col-md-2'>Subject:</span>";
+                    output += "<span class='col-md-10'>" + data.subject + "</span><br></div></div><div class='list-group-item'><div class='row'>";
+                    output += "<span class='col-md-12'>" + data.body + "</span></div></div><div class='list-group-item'><div class='row'>";
+                    if(data.attachmentMimeType !== "" && data.attachmentFileName !== "")
+                    {
+                        output += "<button  class='col-md-6 btn btn-primary' onclick='getAttachment(" + data.ID + ");'>Download the attachment</button>";
+                    }
+                    output += "<span class='col-md-6'></span><br></div>";
+                    if (data.folder !== "Outbox")
+                    {
+                        output += "<div class='row'><div class='form-group'>";
+                        output += "<label class='col-md-6 control-label help-block text-right' for='folders'>Move to folder:</label><div class='col-md-6'>";
+                        output += "<select id='folders' onChange='moveFolder(" + data.ID + ", " + data.folder + ")' name='folders' class='form-control'>";
+                        output += "<option value='Inbox'>Inbox</option><option value='Important'>Important</option>";
+                        output += "<option value='Social'>Social</option><option value='Spam'>Spam</option></select>";
+                    }
+                    output += "</div></div></div></div>";
+                    $("#email").html(output);
+                    //$("#folders").val(data.folder).change();
+                    $('#folders option[value="' + data.folder + '"]').attr("selected", true);
+                    console.log(data.folder, data.ID);
+                });
+            }
+
+            $(document).ready(function () {
+                $("#login").click(function () {
+
+                    email = $("#loginForm input[name=email]").val();
+                    password = $("#loginForm input[name=password]").val();
+                    $.ajax({
+                        url: "/api/users/" + email,
+                        beforeSend: function (xhr) {
+                            xhr.setRequestHeader("Authorization", "Basic " + btoa(email + ":" + password));
+                        },
+                        complete: function (xhr, text) {
+                            switch (xhr.status) {
+                                case 401:
+                                    alert("Login failed. Check username and password");
+                                    break;
+                                case 200:
+                                    break;
+                                default:
+                                    alert("Server API error with code " + xhr.status);
+                            }
+                        },
+                        type: "GET",
+                        dataType: "json"
+                    }).done(function (data) {
+                        currentId = data.id;
+                        console.log("DATA: ||" + data.email + "|| Logged in.");
+                        $("#loginFill").toggle();
+                        $("#logout").toggle();
+                        $("#nav").toggle();
+                        $("#page-wrapper").toggle();
+                        $("#loginForm").toggle();
+                        $("#address").html("<i class='fa fa-user'></i> " + data.email +"");
+                        loadMails($("#Inbox").attr('id'));                         
+                    });
+                });
+
+                $("#nav > li").click(function () {
+                    $(this).addClass("active").siblings().removeClass("active");
+                });
+                $("#Inbox").click(function () {
+                    $("#newMailWindow").html("");
+                    $("#email").html("");
+                    loadMails($("#Inbox").attr('id'));
+                });
+                $("#Important").click(function () {
+                    $("#newMailWindow").html("");
+                    $("#email").html("");
+                    loadMails($("#Important").attr('id'));
+                });
+                $("#Social").click(function () {
+                    $("#newMailWindow").html("");
+                    $("#email").html("");
+                    loadMails($("#Social").attr('id'));
+                });
+                $("#Spam").click(function () {
+                    $("#newMailWindow").html("");
+                    $("#email").html("");
+                    loadMails($("#Spam").attr('id'));
+                });
+                $("#Outbox").click(function () {
+                    $("#newMailWindow").html("");
+                    $("#email").html("");
+                    loadMails($("#Outbox").attr('id'));
+                });
+                $("#new").click(function () {
+                    $("#emailList").html("");
+                    $("#email").html("");
+                    newMail();
+                });
+                $("#logout").click(function () {
+                    $("#loginForm input[name=password]").val("");
+                    $("#loginForm input[name=email]").val("");
+                    $("#emailList").html("");
+                    $("#email").html("");
+                    $("#newMailWindow").html("");
+                    $("#logout").toggle();
+                    $("#nav").toggle();
+                    $("#page-wrapper").toggle();
+                    $("#loginForm").toggle();
+                    $("#loginFill").toggle();
+                });
+                $("#address").click(function () {
+                    $("#Inbox").click();
+                });
+            });
+        </script>
+    </head>
+    <body>
+        <div id="wrapper">
+            <!-- Navigation -->
+            <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+                <!-- Brand and toggle get grouped for better mobile display -->
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="mail.html">Email</a>
+                </div>
+                <!-- Top bar -->
+                <ul class="nav navbar-right top-nav">
+                    <li class="dropdown" id="loginFill" style="display: none;">
+                        <a href='#' class='dropdown-toggle' id="address">
+                            
+                        </a>
+                    </li>
+                    <li class="dropdown" id="logout" style="display: none;">
+                        <a href='#' class='dropdown-toggle'>Logout</a>
+                    </li>
+                    <li class="dropdown" id="loginForm">
+                        <div class="navbar-form navbar-right">
+                            <div class="input-group">
+                                <span class="input-group-addon"><i class="fa fa-envelope fa"></i></span>
+                                <input type="email" class="form-control" name="email" value="" placeholder="Email Address">                                        
+                            </div>
+
+                            <div class="input-group">
+                                <span class="input-group-addon"><i class="fa fa-lock fa-lg"></i></span>
+                                <input type="password" class="form-control" name="password" value="" placeholder="Password">                                        
+                            </div>
+                            <button class="btn btn-primary" id="login">Login</button>
+                        </div>
+                    </li>
+                </ul>
+                <!-- Sidebar Menu Items - These collapse to the responsive navigation menu on small screens -->
+                <div class="collapse navbar-collapse navbar-ex1-collapse">
+                    <ul class="nav navbar-nav side-nav" id="nav" style="display: none">
+                        <li>
+                            <a href="#" id="new"><i class="fa fa-fw fa-envelope-o"></i> New Email</a>
+                        </li>
+                        <li class="active">
+                            <a href="#" id="Inbox"><i class="fa fa-fw fa-bars"></i> Inbox</a>
+                        </li>
+                        <li>
+                            <a href="#" id="Important"><i class="fa fa-fw fa-bookmark-o"></i> Important</a>
+                        </li>
+                        <li>
+                            <a href="#" id="Social"><i class="fa fa-fw fa-comments-o"></i> Social</a>
+                        </li>
+                        <li>
+                            <a href="#" id="Spam"><i class="fa fa-fw fa-exclamation"></i> Spam</a>
+                        </li>
+                        <li>
+                            <a href="#" id="Outbox"><i class="fa fa-fw fa-mail-forward"></i> Outbox</a>
+                        </li>
+                    </ul>
+
+                </div>
+                <!-- /.navbar-collapse -->
+            </nav>
+            <div id="page-wrapper" style="display: none">
+                <div class="container-fluid">
+                    <!-- Page Heading -->
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="list-group" id="newMailWindow">
+
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="list-group" id="emailList">
+
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="list-group" id="email">
+
+                            </div>
+                        </div>
+                    </div>
+                    <!-- /.row -->
+                </div>
+                <!-- /.container-fluid -->
+            </div>
+            <!-- /#page-wrapper -->
+        </div>
+        <!-- /#wrapper -->
+    </body>
+</html>
