@@ -13,7 +13,7 @@ $log->pushHandler(new StreamHandler('../everything.log', Logger::DEBUG));
 $log->pushHandler(new StreamHandler('../errors.log', Logger::ERROR));
 
 // http://meekro.com/
-$url = parse_url(getenv("us-cdbr-iron-east-03.cleardb.net/heroku_ec730381fb7f"));
+//$url = parse_url(getenv("us-cdbr-iron-east-03.cleardb.net/heroku_ec730381fb7f"));
 
 DB::$host = 'us-cdbr-iron-east-03.cleardb.net';
 DB::$dbName = 'heroku_ec730381fb7fa69';
